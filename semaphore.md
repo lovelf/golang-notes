@@ -372,7 +372,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
                 t.next = nil
                 t.waittail = nil
             } else {
-                // 把 s 添加到 t 的等待列表的末尾
+                // 把 s 添加到 t 的等待列表的末尾, waittail是空间换时间
                 if t.waittail == nil {
                     t.waitlink = s
                 } else {
