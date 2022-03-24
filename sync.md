@@ -370,6 +370,8 @@ func (m *Mutex) Lock() {
             runtime_SemacquireMutex(&m.sema, queueLifo)
             // 如果等待时间超过了阈值，那么就进入 starving 状态
             // 此时唤醒的goroutine， 要么是设置为唤醒状态或者为饥饿状态（取决于state的饥饿位）
+            // 若是第一次触发饥饿，则会唤醒去设置饥饿（在循环设置中 若此时锁没有被获取，也就不需要设置饥饿状态了）
+            // 若是第二次饥饿，则直接获取锁
             starving = starving || runtime_nanotime()-waitStartTime > starvationThresholdNs
             old = m.state
             if old&mutexStarving != 0 {
@@ -392,7 +394,7 @@ func (m *Mutex) Lock() {
                 atomic.AddInt32(&m.state, delta)
                 break
             }
-            // 到这里说明仅仅是唤醒状态 则参与获取锁
+            // 到这里说明仅仅是唤醒状态，标为唤醒者，则参与获取锁
             awoke = true
             iter = 0
         } else {
