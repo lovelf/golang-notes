@@ -334,7 +334,7 @@ func (m *Mutex) Lock() {
         }
 
         // 当前 goroutine 将 mutex 切换到 starvation 模式
-        // 如果 mutex 当前已经被 unlock 了，就不要做这个切换了
+        // 如果 mutex old&mutexLocked当前已经被 unlock 了，就不要做这个切换了
         // Unlock 的时候会认为一个 starving 的 mutex 一定会有等待的 goroutine，
         // 这种情况下一定为 true
         if starving && old&mutexLocked != 0 {
@@ -369,6 +369,7 @@ func (m *Mutex) Lock() {
             }
             runtime_SemacquireMutex(&m.sema, queueLifo)
             // 如果等待时间超过了阈值，那么就进入 starving 状态
+            // 此时唤醒的goroutine， 要么是设置为唤醒状态或者为饥饿状态（取决于state的饥饿位）
             starving = starving || runtime_nanotime()-waitStartTime > starvationThresholdNs
             old = m.state
             if old&mutexStarving != 0 {
@@ -378,6 +379,7 @@ func (m *Mutex) Lock() {
                 if old&(mutexLocked|mutexWoken) != 0 || old>>mutexWaiterShift == 0 {
                     throw("sync: inconsistent mutex state")
                 }
+                // 加锁及去掉一个等待者
                 delta := int32(mutexLocked - 1<<mutexWaiterShift)
                 if !starving || old>>mutexWaiterShift == 1 {
                     // 退出饥饿模式
@@ -390,6 +392,7 @@ func (m *Mutex) Lock() {
                 atomic.AddInt32(&m.state, delta)
                 break
             }
+            // 到这里说明仅仅是唤醒状态 则参与获取锁
             awoke = true
             iter = 0
         } else {
