@@ -333,6 +333,10 @@ TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0-17    //  17 = sizeof(*uint
 
 runtime/internal/atomic/asm_amd64.s
 ```assembly
+// Atomically:
+//	old := *ptr;
+//	*ptr = new;
+//	return old;
 TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
 	MOVQ	ptr+0(FP), BX
 	MOVL	new+8(FP), AX
@@ -367,7 +371,7 @@ runtime/internal/atomic/asm_amd64.s
 TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVQ	ptr+0(FP), BX
 	MOVL	val+8(FP), AX
-	XCHGL	AX, 0(BX) // 交换指令
+	XCHGL	AX, 0(BX) // 交换指令，保存新值
 	RET
 ```
 
