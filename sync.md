@@ -428,6 +428,8 @@ func (m *Mutex) Unlock() {
             // 当前 goroutine 并不在这个链条中，
             // 因为我们在 unlock 上面的 mutex 时，没有观察到 mutexStarving 的标识位
             // 所以直接 return 让路
+            // 第一次判断 old>>mutexWaiterShift 有效，不可能是饥饿状态的
+            // 第二次及以上判断 
             if old>>mutexWaiterShift == 0 || old&(mutexLocked|mutexWoken|mutexStarving) != 0 {
                 return
             }
@@ -435,6 +437,8 @@ func (m *Mutex) Unlock() {
             // 获取唤醒其它人的权力
             new = (old - 1<<mutexWaiterShift) | mutexWoken
             if atomic.CompareAndSwapInt32(&m.state, old, new) {
+                // 再去获取信号量
+                // 可能被新来的goroutine获取到信号量
                 runtime_Semrelease(&m.sema, false)
                 return
             }
@@ -445,6 +449,7 @@ func (m *Mutex) Unlock() {
         // 注意: mutexLocked 没有设置，waiter 被唤醒后会设置这个标识
         // 但是 mutex 在 waiter 被唤醒后，如果 mutexStarving 位是 1 的话
         // 仍然会被认为是上锁的，所以新来的 goroutine 是没法获取这个锁的
+        // 直接传入获取到信号量
         runtime_Semrelease(&m.sema, true)
     }
 }
