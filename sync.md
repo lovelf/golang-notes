@@ -302,6 +302,10 @@ func (m *Mutex) Lock() {
             // 这里会做积极的自旋
             // 没有其它饥饿的 goroutine 的话，我们尽量直接就设置 mutexWoken flag
             // 这样在 Unlock 的时候就不用唤醒其它被阻塞的 goroutine 了
+            // awoke 唤醒状态
+            // old & mutexWoken == 0 当前没有唤醒状态
+            // old >> mutexWaiterShift != 0 说明还有等待goroutine
+            // 设置唤醒状态成功
             if !awoke && old&mutexWoken == 0 && old>>mutexWaiterShift != 0 &&
                 // 设置 mutexWoken flag
                 atomic.CompareAndSwapInt32(&m.state, old, old|mutexWoken) {
@@ -325,6 +329,7 @@ func (m *Mutex) Lock() {
         }
 
         if old&(mutexLocked|mutexStarving) != 0 {
+            // 说明加锁及饥饿状态 新来的goroutine进去等待状态
             new += 1 << mutexWaiterShift
         }
 
