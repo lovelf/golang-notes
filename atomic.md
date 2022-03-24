@@ -297,23 +297,31 @@ go 文件内同样只进行了函数的定义，具体实现为在各平台的 a
 
 runtime/internal/atomic/asm_amd64.s
 ```assembly
+// bool Cas(int32 *val, int32 old, int32 new)
+// Atomically:
+//	if(*val == old){
+//		*val = new;
+//		return 1;
+//	} else
+//		return 0;
 TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0-17    //  17 = sizeof(*uint32 + sizeof(uint32) + sizeof(uint32) + sizeof(uint8/bool))
 	MOVQ	ptr+0(FP), BX                         // 入参 1 ，8 字节 uint32 指针
 	MOVL	old+8(FP), AX                         // 入参 2 ，4 字节 uint32
 	MOVL	new+12(FP), CX                        // 入参 3 ，4 字节 uint32
 	LOCK                                        // lock 指令前缀
         /*
-         * CMPXCHGL r, [m]
-         * if AX == [m] {
+	 * AX为旧值,BX为变量的地址，CX为新值
+         * CMPXCHGL CX, [BX]
+         * if AX == [BX] {
          *   ZF = 1;
-         *   [m] = r;
+         *   [BX] = CX;
          * } else {
          *   ZF = 0;
-         *   AX = [m];
+         *   AX = [BX];
          * }
          */
 	CMPXCHGL	CX, 0(BX)                     // 比较并交换指令, ZF set to 1 if success         
-	SETEQ	ret+16(FP)                            // 1 if ZF set to 1
+	SETEQ	ret+16(FP)                            // 1 if ZF set to 1，返回结果
 	RET
 ```
 > ZF: 标志寄存器的一种，零标志：用于判断结果是否为0。运算结果0，ZF置1，否则置0。
@@ -333,9 +341,11 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
 	RET
 ```
 
-#### func AddInt32(addr *int32, new int32) (old int32)
+#### func AddInt32(addr *int32, delta int32) (new int32)
 > alias("sync/atomic", "AddInt32", "runtime/internal/atomic", "Xadd", all...)
-
+// Atomically:
+// *val += delta;
+// return *val;
 runtime/internal/atomic/asm_amd64.s
 ```assembly
 TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
@@ -343,9 +353,9 @@ TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
 	MOVL	delta+8(FP), AX
 	MOVL	AX, CX
 	LOCK
-	XADDL	AX, 0(BX)  // Exchange and Add
+	XADDL	AX, 0(BX)  // Exchange and Add 交换 和 添加值，AX为原有的值，
 	ADDL	CX, AX     // AX += CX
-	MOVL	AX, ret+16(FP)
+	MOVL	AX, ret+16(FP) // 返回的为新值
 	RET
 ```
 #### func StoreInt32(addr *int32, val int32)
