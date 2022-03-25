@@ -41,12 +41,6 @@ func(c *Counter) Count() uint64 {
    return c.count
 }
 
-```
-
-
-
-
-
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -219,3 +213,5 @@ type rlocker RWMutex
 
 func (r *rlocker) Lock()   { (*RWMutex)(r).RLock() }
 func (r *rlocker) Unlock() { (*RWMutex)(r).RUnlock() }
+
+```
